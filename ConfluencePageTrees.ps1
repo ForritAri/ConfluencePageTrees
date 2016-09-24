@@ -2,8 +2,8 @@
 Typical flow
 
 $a = Get-CHeader
-RecursiveCopy-CPage -pHeaders $a -pBase_Uri $__base_uri -pPage_id xxxxx
-RecursiveDelete-CPage -pHeaders $a -pBase_Uri $__base_uri -pPage_id yyyyy
+RecursiveCopy-CPage -pHeaders $a -pBase_Uri "https://confluence.mycompany.com/rest/api/" -pPage_id xxxxx
+RecursiveDelete-CPage -pHeaders $a -pBase_Uri "https://confluence.mycompany.com/rest/api/" -pPage_id yyyyy
 #>
 
 # Get login details, encode them and put them into the header.
