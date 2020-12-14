@@ -1,7 +1,8 @@
 ﻿<#
 Typical flow
 
-$a = Get-CHeader
+. .\ConfluencePageTrees.ps1 	... loads the functions 
+$a = Get-CHeader 				... sets the credentials
 RecursiveCopy-CPage -pHeaders $a -pBase_Uri "https://confluence.mycompany.com/rest/api/" -pPage_id xxxxx
 RecursiveDelete-CPage -pHeaders $a -pBase_Uri "https://confluence.mycompany.com/rest/api/" -pPage_id yyyyy
 #>
