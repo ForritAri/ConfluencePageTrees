@@ -11,7 +11,7 @@ RecursiveDelete-CPage -pHeaders $a -pBase_Uri "https://confluence.mycompany.com/
 function Get-CHeader {
     $creds = Get-Credential
     $user = $creds.UserName
-    $pass = $creds.GetNetworkCredential().Password
+    $pass = $creds.GetNetworkCredential().Password # This can be the actual login password (depreciated) or an API token
     $pair = $user + ':' + $pass
     $encodedCreds = [System.Convert]::ToBase64String([System.Text.Encoding]::ASCII.GetBytes($pair))
     $basicAuthValue = "Basic $encodedCreds"
@@ -76,4 +76,32 @@ function RecursiveDelete-CPage
 
     # Arrived at a leave, delete it
     Invoke-RestMethod -Uri ($pBase_uri+"content/"+$original.id) -Method Delete -ContentType "application/json" -Headers $pHeaders
+}
+
+
+# Remove version history from a page-tree
+function RecursiveDeletePageVersionHistory-CPage
+{
+    Param ([hashtable]$pHeaders, [string]$pBase_uri, [int]$pPage_id)
+    
+    # Get the top page of the page-tree
+    $original = Invoke-RestMethod -Uri ($pBase_Uri+"content/"+$pPage_id+"?expand=version,children.page") -Method get -ContentType "application/json" -Headers $pHeaders
+
+    # Go down to the leaves and move back up the tree as you go
+    foreach ($child in $original.children.page.results.GetEnumerator()) 
+    {
+        RecursiveDeletePageVersionHistory-CPage -pHeader $pHeaders -pBase_Uri $pBase_Uri -pPage_id $child.id 
+    }
+
+    # Arrived at a leave, delete its version history 
+    # Delete the versions botom-up. Each time version 1 is deleted the other versions get shifted down.
+    Write-Host ($original.id + " - " + $original.version.number)
+
+    $t = 1
+    while ($t -lt $original.version.number)
+    {
+        $t++
+        Write-Host $t   
+        Invoke-RestMethod -Uri ($pBase_uri+"content/"+$pPage_id+"/version/1") -Method delete -ContentType "application/json"  -Headers $pHeaders
+     }
 }
