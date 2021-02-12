@@ -5,6 +5,9 @@ Typical flow
 $a = Get-CHeader 				... sets the credentials
 RecursiveCopy-CPage -pHeaders $a -pBase_Uri "https://confluence.mycompany.com/rest/api/" -pPage_id xxxxx
 RecursiveDelete-CPage -pHeaders $a -pBase_Uri "https://confluence.mycompany.com/rest/api/" -pPage_id yyyyy
+
+For Confluence cloud the pBase_Uri is https://mycompany.atlassian.com/wiki/rest/api/
+
 #>
 
 # Get login details, encode them and put them into the header.
@@ -85,6 +88,7 @@ function RecursiveDeletePageVersionHistory-CPage
     Param ([hashtable]$pHeaders, [string]$pBase_uri, [int]$pPage_id)
     
     # Get the top page of the page-tree
+    Write-Host ($pBase_Uri+"content/"+$pPage_id+"?expand=version,children.page")
     $original = Invoke-RestMethod -Uri ($pBase_Uri+"content/"+$pPage_id+"?expand=version,children.page") -Method get -ContentType "application/json" -Headers $pHeaders
 
     # Go down to the leaves and move back up the tree as you go
