@@ -5,8 +5,9 @@ Typical flow
 $a = Get-CHeader 				... sets the credentials
 RecursiveCopy-CPage -pHeaders $a -pBase_Uri "https://confluence.mycompany.com/rest/api/" -pPage_id xxxxx
 RecursiveDelete-CPage -pHeaders $a -pBase_Uri "https://confluence.mycompany.com/rest/api/" -pPage_id yyyyy
+RecursiveDeletePageVersionHistory-CPage -pHeaders $a -pBase_Uri "https://confluence.mycompany.com/rest/api/" -pPage_id zzzzz
 
-For Confluence cloud the pBase_Uri is https://mycompany.atlassian.com/wiki/rest/api/
+For Confluence cloud the pBase_Uri is https://mycompany.atlassian.net/wiki/rest/api/. Need to generate and use an api_token.
 
 #>
 
