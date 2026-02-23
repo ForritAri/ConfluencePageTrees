@@ -25,13 +25,45 @@ function Get-CHeader {
     Write-Output $Headers
 }
 
+# Get all direct child pages for a page, handling Confluence pagination.
+function Get-CChildPages
+{
+    Param ([hashtable]$pHeaders, [string]$pBase_Uri, [int]$pPage_id, [int]$pLimit = 100)
+
+    $start = 0
+    $children = @()
+    $hasMore = $true
+
+    while ($hasMore)
+    {
+        $uri = $pBase_Uri + "content/" + $pPage_id + "/child/page?start=" + $start + "&limit=" + $pLimit
+        $response = Invoke-RestMethod -Uri $uri -Method Get -ContentType "application/json" -Headers $pHeaders
+
+        if ($response.results)
+        {
+            $children += $response.results
+        }
+
+        if ($response._links.next)
+        {
+            $start += $pLimit
+        }
+        else
+        {
+            $hasMore = $false
+        }
+    }
+
+    Write-Output $children
+}
+
 # Copy a page-tree
 function RecursiveCopy-CPage
 {
     Param ([hashtable]$pHeaders, [string]$pBase_Uri, [int]$pPage_id, [int]$pAncestor_id)
 
     # Get the page to be copied
-    $original_page = Invoke-RestMethod -Uri ($pBase_Uri+"content/"+$pPage_id+"?expand=body.storage,ancestors,space,children.page") -Method get -ContentType "application/json" -Headers $pHeaders
+    $original_page = Invoke-RestMethod -Uri ($pBase_Uri+"content/"+$pPage_id+"?expand=body.storage,ancestors,space") -Method get -ContentType "application/json" -Headers $pHeaders
     # Pick out the properties needed
     $new_page = New-Object psobject
 
@@ -51,13 +83,13 @@ function RecursiveCopy-CPage
         $new_page | Add-member -MemberType NoteProperty -Name ancestors -Value @(@{id="$pAncestor_id";type="page"})
     }
 
-    $new_page_json = ConvertTo-Json $new_page
+    $new_page_json = ConvertTo-Json $new_page -Depth 10
     $created_page = Invoke-RestMethod -Uri ($pBase_uri+"content/") -Method Post -ContentType "application/json" -Body $new_page_json -Headers $pHeaders
 
     # Loop through the children, copy them and attach to the newly created page
-    foreach ($p_id in $original_page.children.page.results.GetEnumerator()) 
+    foreach ($p_id in (Get-CChildPages -pHeaders $pHeaders -pBase_Uri $pBase_Uri -pPage_id $pPage_id)) 
     {
-        RecursiveCopy-CPage -pHeader $pHeaders -pBase_Uri $pBase_Uri -pPage_id $p_id.id -pAncestor_id $created_page.id
+        RecursiveCopy-CPage -pHeaders $pHeaders -pBase_Uri $pBase_Uri -pPage_id $p_id.id -pAncestor_id $created_page.id
     }
 }
 
@@ -70,12 +102,12 @@ function RecursiveDelete-CPage
     Param ([hashtable]$pHeaders, [string]$pBase_uri, [int]$pPage_id)
     
     # Get the top page of the page-tree to be deleted
-    $original = Invoke-RestMethod -Uri ($pBase_Uri+"content/"+$pPage_id+"?expand=children.page") -Method get -ContentType "application/json" -Headers $pHeaders
+    $original = Invoke-RestMethod -Uri ($pBase_Uri+"content/"+$pPage_id) -Method get -ContentType "application/json" -Headers $pHeaders
 
     # Go down to the leaves and move back up deleting the tree as you go
-    foreach ($child in $original.children.page.results.GetEnumerator()) 
+    foreach ($child in (Get-CChildPages -pHeaders $pHeaders -pBase_Uri $pBase_Uri -pPage_id $pPage_id)) 
     {
-        RecursiveDelete-CPage -pHeader $pHeaders -pBase_Uri $pBase_Uri -pPage_id $child.id 
+        RecursiveDelete-CPage -pHeaders $pHeaders -pBase_Uri $pBase_Uri -pPage_id $child.id 
     }
 
     # Arrived at a leave, delete it
@@ -89,13 +121,13 @@ function RecursiveDeletePageVersionHistory-CPage
     Param ([hashtable]$pHeaders, [string]$pBase_uri, [int]$pPage_id)
     
     # Get the top page of the page-tree
-    Write-Host ($pBase_Uri+"content/"+$pPage_id+"?expand=version,children.page")
-    $original = Invoke-RestMethod -Uri ($pBase_Uri+"content/"+$pPage_id+"?expand=version,children.page") -Method get -ContentType "application/json" -Headers $pHeaders
+    Write-Host ($pBase_Uri+"content/"+$pPage_id+"?expand=version")
+    $original = Invoke-RestMethod -Uri ($pBase_Uri+"content/"+$pPage_id+"?expand=version") -Method get -ContentType "application/json" -Headers $pHeaders
 
     # Go down to the leaves and move back up the tree as you go
-    foreach ($child in $original.children.page.results.GetEnumerator()) 
+    foreach ($child in (Get-CChildPages -pHeaders $pHeaders -pBase_Uri $pBase_Uri -pPage_id $pPage_id)) 
     {
-        RecursiveDeletePageVersionHistory-CPage -pHeader $pHeaders -pBase_Uri $pBase_Uri -pPage_id $child.id 
+        RecursiveDeletePageVersionHistory-CPage -pHeaders $pHeaders -pBase_Uri $pBase_Uri -pPage_id $child.id 
     }
 
     # Arrived at a leave, delete its version history 
